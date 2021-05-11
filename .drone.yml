@@ -1,0 +1,166 @@
+kind: pipeline
+type: kubernetes
+name: build
+
+steps:
+  - name: publish
+    image: plugins/ecr
+    environment:
+      PLUGIN_STORAGE_DRIVER: overlay2
+      PLUGIN_CACHE_FROM: 336306255944.dkr.ecr.eu-central-1.amazonaws.com/identomat-notifications:${DRONE_BRANCH}-latest
+    settings:
+      access_key:
+        from_secret: aws_access_key
+      secret_key:
+        from_secret: aws_secret_key
+      repo: identomat-notifications
+      registry: 336306255944.dkr.ecr.eu-central-1.amazonaws.com
+      region: eu-central-1
+      tags:
+        - latest
+        - ${DRONE_BRANCH}-latest
+        - ${DRONE_COMMIT_SHA:0:8}
+
+volumes:
+  - name: docker
+    temp: {}
+
+trigger:
+  branch:
+    - development
+    - test
+    - master
+
+---
+kind: pipeline
+type: kubernetes
+name: publish to development
+
+steps:
+  - name: deploy
+    image: davit/helm-kubectl
+    environment:
+      KUBE_CONFIG:
+        from_secret: kubernetes_config
+    commands:
+      - echo ${DRONE_COMMIT_SHA:0:8}
+      - cd helm/identomat-notifications
+      - helm template --values values.yaml,values/identomat-dev.yaml --set image.tag=${DRONE_COMMIT_SHA:0:8},image.pullPolicy=IfNotPresent ../identomat-notifications > identomat-notifications.yaml
+      - cat identomat-notifications.yaml
+      - echo "$KUBE_CONFIG" | base64 -d > config
+      - kubectl --kubeconfig=config apply -f identomat-notifications.yaml
+
+depends_on:
+  - build
+
+trigger:
+  branch:
+    - development
+
+---
+kind: pipeline
+type: kubernetes
+name: publish to test
+
+steps:
+  - name: deploy
+    image: davit/helm-kubectl
+    environment:
+      KUBE_CONFIG:
+        from_secret: kubernetes_config
+    commands:
+      - echo ${DRONE_COMMIT_SHA:0:8}
+      - cd helm/identomat-notifications
+      - helm template --values values.yaml,values/identomat-test.yaml --set image.tag=${DRONE_COMMIT_SHA:0:8},image.pullPolicy=IfNotPresent ../identomat-notifications > identomat-notifications.yaml
+      - cat identomat-notifications.yaml
+      - echo "$KUBE_CONFIG" | base64 -d > config
+      - kubectl --kubeconfig=config apply -f identomat-notifications.yaml
+
+depends_on:
+  - build
+
+trigger:
+  branch:
+    - test
+
+---
+kind: pipeline
+type: kubernetes
+name: publish to aws
+
+steps:
+  - name: deploy
+    image: davit/helm-kubectl-aws
+    environment:
+      AWS_ACCESS_KEY_ID:
+        from_secret: aws_access_key
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: aws_secret_key
+      KUBE_CONFIG:
+        from_secret: kubernetes_aws_config
+    commands:
+      - echo ${DRONE_COMMIT_SHA:0:8}
+      - cd helm/identomat-notifications
+      - helm template --values values.yaml,values/identomat-aws.yaml --set image.tag=${DRONE_COMMIT_SHA:0:8},image.pullPolicy=IfNotPresent ../identomat-notifications > identomat-notifications.yaml
+      - cat identomat-notifications.yaml
+      - echo "$KUBE_CONFIG" | base64 -d > config
+      - kubectl --kubeconfig=config apply -f identomat-notifications.yaml
+
+depends_on:
+  - build
+
+trigger:
+  branch:
+    - master
+
+---
+kind: pipeline
+type: kubernetes
+name: publish to proservice
+
+steps:
+  - name: deploy
+    image: davit/helm-kubectl
+    environment:
+      KUBE_CONFIG:
+        from_secret: kubernetes_proservice_config
+    commands:
+      - echo ${DRONE_COMMIT_SHA:0:8}
+      - cd helm/identomat-notifications
+      - helm template --values values.yaml,values/identomat-geo.yaml --set image.tag=${DRONE_COMMIT_SHA:0:8},image.pullPolicy=IfNotPresent ../identomat-notifications > identomat-notifications.yaml
+      - cat identomat-notifications.yaml
+      - echo "$KUBE_CONFIG" | base64 -d > config
+      - kubectl --kubeconfig=config apply -f identomat-notifications.yaml
+
+depends_on:
+  - build
+
+trigger:
+  branch:
+    - master
+
+---
+kind: pipeline
+type: kubernetes
+name: publish to digitalocean
+
+steps:
+  - name: deploy
+    image: davit/helm-kubectl
+    environment:
+      KUBE_CONFIG:
+        from_secret: kubernetes_do_config
+    commands:
+      - echo ${DRONE_COMMIT_SHA:0:8}
+      - cd helm/identomat-notifications
+      - helm template --values values.yaml,values/identomat-do.yaml --set image.tag=${DRONE_COMMIT_SHA:0:8},image.pullPolicy=IfNotPresent ../identomat-notifications > identomat-notifications.yaml
+      - cat identomat-notifications.yaml
+      - echo "$KUBE_CONFIG" | base64 -d > config
+      - kubectl --kubeconfig=config apply -f identomat-notifications.yaml
+
+depends_on:
+  - build
+
+trigger:
+  branch:
+    - master

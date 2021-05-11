@@ -1,0 +1,4 @@
+namespace: identomat
+
+monitoring:
+  enabled: false

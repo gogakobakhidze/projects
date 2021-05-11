@@ -1,0 +1,16 @@
+{{- if .Values.monitoring.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ include "identomat-notifications.name" . }}
+  name: {{ include "identomat-notifications.fullname" . }}
+  namespace: {{ .Values.namespace }}
+spec:
+  endpoints:
+    - interval: 15s
+      port: http
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "identomat-notifications.name" . }}
+{{- end }}

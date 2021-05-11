@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: {{ include "identomat-notifications.fullname" . }}
+    namespace: {{ .Values.namespace }}
+    labels:
+        app.kubernetes.io/name: {{ include "identomat-notifications.name" . }}
+spec:
+    replicas: {{ .Values.replicaCount }}
+    selector:
+        matchLabels:
+            app.kubernetes.io/name: {{ include "identomat-notifications.name" . }}
+    template:
+        metadata:
+            labels:
+                app.kubernetes.io/name: {{ include "identomat-notifications.name" . }}
+        spec:
+            imagePullSecrets:
+                - name: {{ .Values.registrySecret }}
+            containers:
+                - name: {{ .Chart.Name }}
+                  image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+                  imagePullPolicy: {{ .Values.image.pullPolicy }}
+                  env:
+                      - name: NODE_HOST
+                        valueFrom:
+                            configMapKeyRef:
+                                name: {{ include "identomat-notifications.name" . }}-config
+                                key: nodeHost
+                      - name: NODE_PORT
+                        valueFrom:
+                            configMapKeyRef:
+                                name: {{ include "identomat-notifications.name" . }}-config
+                                key: nodePort
+                      - name: MONGO_URL
+                        valueFrom:
+                            configMapKeyRef:
+                                name: {{ include "identomat-notifications.name" . }}-config
+                                key: mongoUrl
+                      - name: REDIS_HOST
+                        valueFrom:
+                          configMapKeyRef:
+                            name: {{ include "identomat-notifications.name" . }}-config
+                            key: redisHost
+                      - name: REDIS_PORT
+                        valueFrom:
+                          configMapKeyRef:
+                            name: {{ include "identomat-notifications.name" . }}-config
+                            key: redisPort
+                      {{ if eq .Values.mongodb.auth "true" }}
+                      - name: MONGO_AUTH
+                        value: '{{ .Values.mongodb.auth }}'
+                      - name: MONGO_USER
+                        value: {{ .Values.mongodb.user }}
+                      - name: MONGO_PASSWORD
+                        valueFrom:
+                          secretKeyRef:
+                            name: {{ .Values.mongodb.secretName }}
+                            key: {{ .Values.mongodb.passwordKey }}
+                      {{ end }}
+                  ports:
+                    - name: http
+                      containerPort: 3000
+                      protocol: TCP
+                  readinessProbe:
+                    tcpSocket:
+                      port: http
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+                  resources:
+                  {{- toYaml .Values.resources | nindent 20 }}
+          {{- with .Values.nodeSelector }}
+            nodeSelector:
+          {{- toYaml . | nindent 8 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+            affinity:
+          {{- toYaml . | nindent 8 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+            tolerations:
+      {{- toYaml . | nindent 8 }}
+        {{- end }}

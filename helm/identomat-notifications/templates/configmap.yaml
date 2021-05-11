@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "identomat-notifications.name" . }}-config
+  namespace: {{ .Values.namespace }}
+data:
+  nodeHost: "{{ .Values.env.NODE_HOST }}"
+  nodePort: "{{ .Values.env.NODE_PORT }}"
+  redisHost: "{{ .Values.env.REDIS_HOST }}"
+  redisPort: "{{ .Values.env.REDIS_PORT }}"
+  mongoUrl: "{{ .Values.env.MONGO_URL }}"
